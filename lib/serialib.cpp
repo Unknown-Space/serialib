@@ -463,8 +463,8 @@ int serialib::writeString(const char *receivedString)
 int serialib::writeBytes(const void *Buffer, const unsigned int NbBytes, unsigned int *NbBytesWritten)
 {
 #if defined (_WIN32) || defined( _WIN64)
-    // Write data
-    if(!WriteFile(hSerial, Buffer, NbBytes, NbBytesWritten, NULL))
+    // Write data:
+    if(!WriteFile(hSerial, Buffer, NbBytes, (LPDWORD)NbBytesWritten, NULL))
         // Error while writing, return -1
         return -1;
     // Write operation successfull
