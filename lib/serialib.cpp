@@ -15,7 +15,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
 This is a licence-free software, it can be used by anyone who try to build a better world.
  */
 
-#include "serialib.h"
+#include "../include/serialib.h"
 
 
 
@@ -729,7 +729,7 @@ int serialib::readBytes (void *buffer,unsigned int maxNbBytes,unsigned int timeO
         }
         // Suspend the loop to avoid charging the CPU
         usleep (sleepDuration_us);
-    } while (timer.elapsedTime_ms()<timeOut_ms || timeOut_ms==-1)
+    } while (timer.elapsedTime_ms()<timeOut_ms || timeOut_ms==-1);
     // Timeout reached, return the number of bytes read
     return NbByteRead;
 #endif
