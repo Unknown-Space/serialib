@@ -536,6 +536,7 @@ int serialib::readChar(char *pByte,unsigned int timeOut_ms)
 
 
 
+
 /*!
      \brief Read a string from the serial device (without TimeOut)
      \param receivedString : string read on the serial device
@@ -660,7 +661,7 @@ int serialib::readString(char *receivedString,char finalChar,unsigned int maxNbB
      \brief Read an array of bytes from the serial device (with timeout)
      \param buffer : array of bytes read from the serial device
      \param maxNbBytes : maximum allowed number of bytes read
-     \param timeOut_ms : delay of timeout before giving up the reading
+     \param timeOut_ms : delay of timeout before giving up the reading. 0 for no timeout, -1 for blocking read
      \param sleepDuration_us : delay of CPU relaxing in microseconds (Linux only)
             In the reading loop, a sleep can be performed after each reading
             This allows CPU to perform other tasks
@@ -679,7 +680,17 @@ int serialib::readBytes (void *buffer,unsigned int maxNbBytes,unsigned int timeO
     DWORD dwBytesRead = 0;
 
     // Set the TimeOut
-    timeouts.ReadTotalTimeoutConstant=(DWORD)timeOut_ms;
+    if (timeOut_ms == -1)
+    {
+        timeouts.ReadIntervalTimeout=0;
+        timeouts.ReadTotalTimeoutConstant=(DWORD)0;
+    } else if (timeOut_ms == 0)
+    {
+        timeouts.ReadIntervalTimeout=MAXDWORD;
+        timeouts.ReadTotalTimeoutConstant=(DWORD)0;
+    } else {
+        timeouts.ReadIntervalTimeout=(DWORD)timeOut_ms;
+    }
 
     // Write the parameters and return -1 if an error occrured
     if(!SetCommTimeouts(hSerial, &timeouts)) return -1;
@@ -698,7 +709,7 @@ int serialib::readBytes (void *buffer,unsigned int maxNbBytes,unsigned int timeO
     timer.initTimer();
     unsigned int     NbByteRead=0;
     // While Timeout is not reached
-    while (timer.elapsedTime_ms()<timeOut_ms || timeOut_ms==0)
+    do
     {
         // Compute the position of the current byte
         unsigned char* Ptr=(unsigned char*)buffer+NbByteRead;
@@ -718,7 +729,7 @@ int serialib::readBytes (void *buffer,unsigned int maxNbBytes,unsigned int timeO
         }
         // Suspend the loop to avoid charging the CPU
         usleep (sleepDuration_us);
-    }
+    } while (timer.elapsedTime_ms()<timeOut_ms || timeOut_ms==-1)
     // Timeout reached, return the number of bytes read
     return NbByteRead;
 #endif
