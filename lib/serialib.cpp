@@ -581,7 +581,7 @@ int serialib::writeString(const char* receivedString) {
      \return 1 success
      \return -1 error while writting data
   */
-int serialib::writeBytes(const void* Buffer, const unsigned int NbBytes, unsigned int* NbBytesWritten) {
+int serialib::writeBytes(const void* Buffer, unsigned int NbBytes, unsigned int* NbBytesWritten) {
 #if defined (_WIN32) || defined( _WIN64)
     // Write data:
     if (!WriteFile(hSerial, Buffer, NbBytes, (LPDWORD)NbBytesWritten, NULL))
@@ -592,9 +592,17 @@ int serialib::writeBytes(const void* Buffer, const unsigned int NbBytes, unsigne
 #endif
 #if defined (__linux__) || defined(__APPLE__)
     // Write data
-    *NbBytesWritten = write(fd, Buffer, NbBytes);
-    if (*NbBytesWritten != (ssize_t)NbBytes)
-        return -1;
+    *NbBytesWritten = 0;
+    while (*NbBytesWritten < NbBytes) {
+        const auto written = write(fd, Buffer, NbBytes);
+        if (written == -1) {
+            return -1; // An error occured
+        }
+        Buffer = (const char*)Buffer + written;
+        NbBytes -= written;
+        *NbBytesWritten += written;
+        // Retry until we wrote everything
+    }
     // Write operation successfull
     return 1;
 #endif
@@ -1156,7 +1164,8 @@ bool serialib::isRTS() {
     \brief      Constructor of the class timeOut.
 */
 // Constructor
-timeOut::timeOut() {
+timeOut::timeOut() :
+    previousTime() {
 }
 
 
@@ -1173,7 +1182,7 @@ void timeOut::initTimer() {
     QueryPerformanceCounter(&tmp);
     previousTime = tmp.QuadPart;
 #else
-    gettimeofday(&previousTime, NULL);
+    gettimeofday(&previousTime, nullptr);
 #endif
 }
 
