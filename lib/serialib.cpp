@@ -297,6 +297,7 @@ signed char serialib::openDevice(const char* Device, const unsigned int Bauds,
 #if defined (__linux__) || defined(__APPLE__)
     // Structure with the device's options
     struct termios options;
+    bool custom_baud = false;
 
 
     // Open device
@@ -415,7 +416,8 @@ signed char serialib::openDevice(const char* Device, const unsigned int Bauds,
             break;
 #endif
         default:
-            return -4;
+            custom_baud = true;
+            Speed = Bauds;
     }
     int databits_flag = 0;
     switch (Databits) {
@@ -469,6 +471,9 @@ signed char serialib::openDevice(const char* Device, const unsigned int Bauds,
     // Configure the device : data bits, stop bits, parity, no control flow
     // Ignore modem control lines (CLOCAL) and Enable receiver (CREAD)
     options.c_cflag |= (CLOCAL | CREAD | databits_flag | parity_flag | stopbits_flag);
+    if (custom_baud) {
+        options.c_cflag |= CBAUD;
+    }
     options.c_iflag |= (IGNPAR | IGNBRK);
     // Timer unused
     options.c_cc[VTIME] = 0;
