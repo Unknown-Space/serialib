@@ -136,10 +136,10 @@ serialib::~serialib() {
      \return -8 Stopbits not recognized
      \return -9 Parity not recognized
   */
-char serialib::openDevice(const char* Device, const unsigned int Bauds,
-                          SerialDataBits Databits,
-                          SerialParity Parity,
-                          SerialStopBits Stopbits) {
+signed char serialib::openDevice(const char* Device, const unsigned int Bauds,
+                                 SerialDataBits Databits,
+                                 SerialParity Parity,
+                                 SerialStopBits Stopbits) {
 #if defined (_WIN32) || defined( _WIN64)
     // Open serial port
     hSerial = CreateFileA(Device, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING,/*FILE_ATTRIBUTE_NORMAL*/0, 0);
@@ -523,14 +523,14 @@ int serialib::writeChar(const char Byte) {
     // Write the char to the serial device
     // Return -1 if an error occured
     if (!WriteFile(hSerial, &Byte, 1, &dwBytesWritten, NULL))
-        return -1;
+        return -10;
     // Write operation successfull
     return 1;
 #endif
 #if defined (__linux__) || defined(__APPLE__)
     // Write the char
     if (write(fd, &Byte, 1) != 1)
-        return -1;
+        return -10;
 
     // Write operation successfull
     return 1;
@@ -546,7 +546,7 @@ int serialib::writeChar(const char Byte) {
      \brief     Write a string on the current serial port
      \param     receivedString : string to send on the port (must be terminated by '\0')
      \return     1 success
-     \return    -1 error while writting data
+     \return    -10 error while writting data
   */
 int serialib::writeString(const char* receivedString) {
 #if defined (_WIN32) || defined( _WIN64)
@@ -555,7 +555,7 @@ int serialib::writeString(const char* receivedString) {
     // Write the string
     if (!WriteFile(hSerial, receivedString, strlen(receivedString), &dwBytesWritten, NULL))
         // Error while writing, return -1
-        return -1;
+        return -10;
     // Write operation successfull
     return 1;
 #endif
@@ -564,7 +564,7 @@ int serialib::writeString(const char* receivedString) {
     int Lenght = strlen(receivedString);
     // Write the string
     if (write(fd, receivedString, Lenght) != Lenght)
-        return -1;
+        return -10;
     // Write operation successfull
     return 1;
 #endif
@@ -586,7 +586,7 @@ int serialib::writeBytes(const void* Buffer, unsigned int NbBytes, unsigned int*
     // Write data:
     if (!WriteFile(hSerial, Buffer, NbBytes, (LPDWORD)NbBytesWritten, NULL))
         // Error while writing, return -1
-        return -1;
+        return -10;
     // Write operation successfull
     return 1;
 #endif
@@ -595,8 +595,9 @@ int serialib::writeBytes(const void* Buffer, unsigned int NbBytes, unsigned int*
     *NbBytesWritten = 0;
     while (*NbBytesWritten < NbBytes) {
         const auto written = write(fd, Buffer, NbBytes);
+        fsync(fd); // Flush the data
         if (written == -1) {
-            return -1; // An error occured
+            return -10; // An error occured
         }
         Buffer = (const char*)Buffer + written;
         NbBytes -= written;
@@ -620,8 +621,8 @@ int serialib::writeBytes(const void* Buffer, const unsigned int NbBytes) {
             If set to zero, timeout is disable (Optional)
      \return 1 success
      \return 0 Timeout reached
-     \return -1 error while setting the Timeout
-     \return -2 error while reading the byte
+     \return -11 error while setting the Timeout
+     \return -12 error while reading the byte
   */
 int serialib::readChar(char* pByte, unsigned int timeOut_ms) {
 #if defined (_WIN32) || defined(_WIN64)
@@ -633,11 +634,11 @@ int serialib::readChar(char* pByte, unsigned int timeOut_ms) {
 
     // Write the parameters, return -1 if an error occured
     if (!SetCommTimeouts(hSerial, &timeouts))
-        return -1;
+        return -11;
 
     // Read the byte, return -2 if an error occured
     if (!ReadFile(hSerial, pByte, 1, &dwBytesRead, NULL))
-        return -2;
+        return -12;
 
     // Return 0 if the timeout is reached
     if (dwBytesRead == 0)
@@ -658,7 +659,7 @@ int serialib::readChar(char* pByte, unsigned int timeOut_ms) {
             case 1:
                 return 1; // Read successfull
             case -1:
-                return -2; // Error while reading
+                return -12; // Error while reading
         }
     }
     return 0;
@@ -672,9 +673,9 @@ int serialib::readChar(char* pByte, unsigned int timeOut_ms) {
      \param FinalChar : final char of the string
      \param MaxNbBytes : maximum allowed number of bytes read
      \return >0 success, return the number of bytes read
-     \return -1 error while setting the Timeout
-     \return -2 error while reading the byte
-     \return -3 MaxNbBytes is reached
+     \return -11 error while setting the Timeout
+     \return -12 error while reading the byte
+     \return -13 MaxNbBytes is reached
   */
 int serialib::readStringNoTimeOut(char* receivedString, char finalChar, unsigned int maxNbBytes) {
     // Number of characters read
@@ -706,7 +707,7 @@ int serialib::readStringNoTimeOut(char* receivedString, char finalChar, unsigned
             return charRead;
     }
     // Buffer is full : return -3
-    return -3;
+    return -13;
 }
 
 
@@ -718,9 +719,9 @@ int serialib::readStringNoTimeOut(char* receivedString, char finalChar, unsigned
      \param timeOut_ms : delay of timeout before giving up the reading (optional)
      \return  >0 success, return the number of bytes read (including the null character)
      \return  0 timeout is reached
-     \return -1 error while setting the Timeout
-     \return -2 error while reading the character
-     \return -3 MaxNbBytes is reached
+     \return -11 error while setting the Timeout
+     \return -12 error while reading the character
+     \return -13 MaxNbBytes is reached
   */
 int serialib::readString(char* receivedString, char finalChar, unsigned int maxNbBytes, unsigned int timeOut_ms) {
     // Check if timeout is requested
@@ -774,8 +775,8 @@ int serialib::readString(char* receivedString, char finalChar, unsigned int maxN
         }
     }
 
-    // Buffer is full : return -3
-    return -3;
+    // Buffer is full : return -13
+    return -13;
 }
 
 
@@ -789,8 +790,8 @@ int serialib::readString(char* receivedString, char finalChar, unsigned int maxN
             This allows CPU to perform other tasks
      \return >=0 return the number of bytes read before timeout or
                 requested data is completed
-     \return -1 error while setting the Timeout
-     \return -2 error while reading the byte
+     \return -11 error while setting the Timeout
+     \return -12 error while reading the byte
   */
 int serialib::readBytes(void* buffer, unsigned int maxNbBytes, unsigned int timeOut_ms, unsigned int sleepDuration_us) {
 #if defined (_WIN32) || defined(_WIN64)
@@ -813,12 +814,12 @@ int serialib::readBytes(void* buffer, unsigned int maxNbBytes, unsigned int time
 
     // Write the parameters and return -1 if an error occrured
     if (!SetCommTimeouts(hSerial, &timeouts))
-        return -1;
+        return -11;
 
 
     // Read the bytes from the serial device, return -2 if an error occured
     if (!ReadFile(hSerial, buffer, (DWORD)maxNbBytes, &dwBytesRead, NULL))
-        return -2;
+        return -12;
 
     // Return the byte read
     return dwBytesRead;
@@ -837,7 +838,7 @@ int serialib::readBytes(void* buffer, unsigned int maxNbBytes, unsigned int time
         int Ret = read(fd, (void*)Ptr, maxNbBytes - NbByteRead);
         // Error while reading
         if (Ret == -1)
-            return -2;
+            return -12;
 
         // One or several byte(s) has been read on the device
         if (Ret > 0) {
@@ -1230,4 +1231,39 @@ unsigned long int timeOut::elapsedTime_ms() {
     // Return the elapsed time in milliseconds
     return sec * 1000 + usec / 1000;
 #endif
+}
+
+const char* serialib_explain_err(const signed char err) {
+    switch (err) {
+        case 1:
+            return "Success";
+        case -1:
+            return "Device not found";
+        case -2:
+            return "Error while opening the device";
+        case -3:
+            return "Error while getting port parameters";
+        case -4:
+            return "Speed (Bauds) not recognized";
+        case -5:
+            return "Error while writing port parameters";
+        case -6:
+            return "Error while writing timeout parameters";
+        case -7:
+            return "Databits not recognized";
+        case -8:
+            return "Stop bits not recognized";
+        case -9:
+            return "Parity not recognized";
+        case -10:
+            return "Error while writing data";
+        case -11:
+            return "Error while setting the Timeout";
+        case -12:
+            return "Error while reading";
+        case -13:
+            return "Read buffer is full";
+        default:
+            return "Unknown error";
+    }
 }

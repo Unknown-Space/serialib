@@ -107,7 +107,7 @@ public:
 
 
     // Open a device
-    char openDevice(const char* Device, const unsigned int Bauds,
+    signed char openDevice(const char* Device, const unsigned int Bauds,
                     SerialDataBits Databits = SERIAL_DATABITS_8,
                     SerialParity Parity = SERIAL_PARITY_NONE,
                     SerialStopBits Stopbits = SERIAL_STOPBITS_1);
@@ -247,5 +247,7 @@ private:
     struct timeval previousTime;
 #endif
 };
+
+const char* serialib_explain_err(signed char err);
 
 #endif // serialib_H
